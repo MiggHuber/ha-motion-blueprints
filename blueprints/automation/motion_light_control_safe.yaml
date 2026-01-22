@@ -1,8 +1,9 @@
 blueprint:
-  name: Bewegungsgesteuertes Licht (ohne Ausschalten bei manueller Aktivierung)
+  name: Bewegungsgesteuertes Licht (nur automatische Abschaltung)
   description: >
-    Schaltet ein Licht oder einen Schalter bei Bewegung ein (wenn vorher aus),
-    und nach einer Verzögerung wieder aus – aber nur, wenn es durch Bewegung eingeschaltet wurde.
+    Schaltet ein Licht oder einen Schalter bei Bewegung ein (nur wenn es vorher aus war).
+    Nach einer Verzögerung wird das Licht nur ausgeschaltet, wenn es durch Bewegung eingeschaltet wurde.
+    Manuell eingeschaltetes Licht bleibt an.
   domain: automation
   input:
     motion_sensor:
@@ -61,7 +62,7 @@ condition:
   - condition: or
     conditions:
       - condition: template
-        value_template: "{{ not (input.illuminance_sensor) }}"
+        value_template: "{{ illuminance_sensor is not defined or not illuminance_sensor }}"
       - condition: numeric_state
         entity_id: !input illuminance_sensor
         below: !input illuminance_threshold
