@@ -1,1 +1,96 @@
+blueprint:
+  name: Bewegungsgesteuertes Licht (ohne Ausschalten bei manueller Aktivierung)
+  description: >
+    Schaltet ein Licht oder einen Schalter bei Bewegung ein (wenn vorher aus),
+    und nach einer Verzögerung wieder aus – aber nur, wenn es durch Bewegung eingeschaltet wurde.
+  domain: automation
+  input:
+    motion_sensor:
+      name: Bewegungssensor
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: motion
+    light_target:
+      name: Licht oder Schalter
+      selector:
+        entity:
+          domain:
+            - light
+            - switch
+    illuminance_sensor:
+      name: Helligkeitssensor (optional)
+      description: Wird nur bei Dunkelheit aktiviert (z. B. unter 20 Lux)
+      default: null
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+    illuminance_threshold:
+      name: Helligkeitsschwelle
+      description: Schwellenwert, unter dem die Automation bei Bewegung reagiert
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 1000
+          unit_of_measurement: lx
+    delay_minutes:
+      name: Ausschaltverzögerung (Minuten)
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: Minuten
+    helper_boolean:
+      name: Input Boolean zur Bewegungsmarkierung
+      description: Ein Umschalter, der speichert, ob das Licht durch Bewegung eingeschaltet wurde
+      selector:
+        entity:
+          domain: input_boolean
 
+mode: restart
+
+trigger:
+  - platform: state
+    entity_id: !input motion_sensor
+    to: "on"
+
+condition:
+  - condition: or
+    conditions:
+      - condition: template
+        value_template: "{{ not (input.illuminance_sensor) }}"
+      - condition: numeric_state
+        entity_id: !input illuminance_sensor
+        below: !input illuminance_threshold
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input light_target
+            state: "off"
+        sequence:
+          - service: homeassistant.turn_on
+            target:
+              entity_id: !input light_target
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input helper_boolean
+
+  - delay:
+      minutes: !input delay_minutes
+
+  - condition: state
+    entity_id: !input helper_boolean
+    state: "on"
+
+  - service: homeassistant.turn_off
+    target:
+      entity_id: !input light_target
+
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input helper_boolean
